@@ -24,10 +24,12 @@ class ProductDeliveryTime extends BaseController
     {
         $productId = $product->getId()->getEndpoint();
         $time      = $product->getSupplierDeliveryTime();
-        
+        $germanMarketDeliveryTimeTaxonomyName = 'product_delivery_time';
+
         if ($time === 0 && Config::get(\JtlConnectorAdmin::OPTIONS_DISABLED_ZERO_DELIVERY_TIME)) {
             $this->removeDeliveryTimeTerm($productId);
-            
+            $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
+
             return;
         }
         
@@ -90,40 +92,81 @@ class ProductDeliveryTime extends BaseController
                     $termId = $newTerm['term_id'];
                     
                     wp_set_object_terms($productId, $termId, 'product_delivery_times', true);
-    
+
+                    /**
+                     * @deprecated
+                     * Will be removed in 2.0.0
+                     */
                     if (SupportedPlugins::isActive(SupportedPlugins::PLUGIN_GERMAN_MARKET)) {
                         update_post_meta($productId, '_lieferzeit', $termId);
                     }
                 }
             } else {
                 wp_set_object_terms($productId, $term->term_id, $term->taxonomy, true);
-    
+
+                /**
+                 * @deprecated
+                 * Will be removed in 2.0.0
+                 */
                 if (SupportedPlugins::isActive(SupportedPlugins::PLUGIN_GERMAN_MARKET)) {
                     update_post_meta($productId, '_lieferzeit', $term->term_id);
                 }
             }
+
+            if (SupportedPlugins::isActive(SupportedPlugins::PLUGIN_GERMAN_MARKET)) {
+
+                $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
+
+                $germanMarketTerm = get_term_by('slug', wc_sanitize_taxonomy_name(
+                    Util::removeSpecialchars($deliveryTimeString)
+                ), $germanMarketDeliveryTimeTaxonomyName);
+
+                $germanMarketTermId = false;
+                if ($germanMarketTerm === false) {
+                    $germanMarketTermArray = \wp_insert_term(
+                        $deliveryTimeString,
+                        $germanMarketDeliveryTimeTaxonomyName
+                    );
+                    if(!$germanMarketTermArray instanceof \WP_Term){
+                        $germanMarketTermId = $germanMarketTermArray['term_id'];
+                    }
+                }else{
+                    $germanMarketTermId = $germanMarketTerm->term_id;
+                }
+
+                if($germanMarketTermId !== false) {
+                    wp_set_object_terms($productId, $germanMarketTermId, $germanMarketDeliveryTimeTaxonomyName, true);
+                }
+            }
+
         } else {
             $this->removeDeliveryTimeTerm($productId);
-            
+            $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
+
             return;
         }
     }
-    
+
     /**
-     * @param string $productId
+     * @param $productId
+     * @param string $taxonomyName
      */
-    private function removeDeliveryTimeTerm($productId)
+    private function removeDeliveryTimeTerm($productId, $taxonomyName = 'product_delivery_times')
     {
-        $terms = wp_get_object_terms($productId, 'product_delivery_times');
+        $terms = wp_get_object_terms($productId, $taxonomyName);
         if (is_array($terms) && ! $terms instanceof WP_Error) {
             if (count($terms) > 0) {
                 /** @var \WP_Term $term */
                 foreach ($terms as $key => $term) {
                     if ($term instanceof \WP_Term) {
+                        /**
+                         * @deprecated
+                         * Will be removed in 2.0.0
+                         */
                         if (SupportedPlugins::isActive(SupportedPlugins::PLUGIN_GERMAN_MARKET)) {
                             delete_post_meta($productId, '_lieferzeit', $term->term_id);
                         }
-                        wp_remove_object_terms($productId, $term->term_id, 'product_delivery_times');
+                        wp_remove_object_terms($productId, $term->term_id, $taxonomyName);
                     }
                 }
             }
