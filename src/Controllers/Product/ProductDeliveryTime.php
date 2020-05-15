@@ -26,10 +26,10 @@ class ProductDeliveryTime extends BaseController
         $time      = $product->getSupplierDeliveryTime();
         $germanMarketDeliveryTimeTaxonomyName = 'product_delivery_time';
 
-        if ($time === 0 && Config::get(\JtlConnectorAdmin::OPTIONS_DISABLED_ZERO_DELIVERY_TIME)) {
-            $this->removeDeliveryTimeTerm($productId);
-            $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
+        $this->removeDeliveryTimeTerm($productId);
+        $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
 
+        if ($time === 0 && Config::get(\JtlConnectorAdmin::OPTIONS_DISABLED_ZERO_DELIVERY_TIME)) {
             return;
         }
         
@@ -114,9 +114,6 @@ class ProductDeliveryTime extends BaseController
             }
 
             if (SupportedPlugins::isActive(SupportedPlugins::PLUGIN_GERMAN_MARKET)) {
-
-                $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
-
                 $germanMarketTerm = get_term_by('slug', wc_sanitize_taxonomy_name(
                     Util::removeSpecialchars($deliveryTimeString)
                 ), $germanMarketDeliveryTimeTaxonomyName);
@@ -127,7 +124,7 @@ class ProductDeliveryTime extends BaseController
                         $deliveryTimeString,
                         $germanMarketDeliveryTimeTaxonomyName
                     );
-                    if(!$germanMarketTermArray instanceof \WP_Term){
+                    if (isset($germanMarketTermArray['term_id'])) {
                         $germanMarketTermId = $germanMarketTermArray['term_id'];
                     }
                 }else{
@@ -139,11 +136,6 @@ class ProductDeliveryTime extends BaseController
                 }
             }
 
-        } else {
-            $this->removeDeliveryTimeTerm($productId);
-            $this->removeDeliveryTimeTerm($productId, $germanMarketDeliveryTimeTaxonomyName);
-
-            return;
         }
     }
 
