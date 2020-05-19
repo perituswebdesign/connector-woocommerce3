@@ -18,8 +18,6 @@ use JtlWooCommerceConnector\Integrations\Plugins\PerfectWooCommerceBrands\Perfec
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\Wpml;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlPerfectWooCommerceBrands;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlTermTranslation;
-use JtlWooCommerceConnector\Utilities\SqlHelper;
-use JtlWooCommerceConnector\Utilities\SupportedPlugins;
 use JtlWooCommerceConnector\Utilities\Util;
 
 /**
@@ -47,10 +45,9 @@ class Manufacturer extends BaseController
 
         if ($perfectWooCommerceBrands->canBeUsed()) {
 
-            if ($this->getPluginsManager()->get(Wpml::class)->canBeUsed()) {
+            if ($this->wpml->canBeUsed()) {
                 $manufacturerData = $this
-                    ->getPluginsManager()
-                    ->get(Wpml::class)
+                    ->getWpml()
                     ->getComponent(WpmlPerfectWooCommerceBrands::class)
                     ->getManufacturers((int)$limit);
 
@@ -73,10 +70,9 @@ class Manufacturer extends BaseController
                 );
                 $manufacturer->addI18n($i18n);
 
-                if ($this->getWpml()->canBeUsed()) {
+                if ($this->wpml->canBeUsed()) {
 
-                    $wpmlTaxonomyTranslations = $this->getPluginsManager()
-                        ->get(Wpml::class)
+                    $wpmlTaxonomyTranslations = $this->wpml
                         ->getComponent(WpmlTermTranslation::class);
 
                     $manufacturerTranslations = $wpmlTaxonomyTranslations
@@ -124,8 +120,8 @@ class Manufacturer extends BaseController
         if ($perfectWooCommerceBrands->canBeUsed()) {
             $defaultLanguage = null;
             foreach ($jtlManufacturer->getI18ns() as $i18n) {
-                if ($this->getWpml()->canBeUsed()) {
-                    if ($this->getWpml()->getDefaultLanguage() === Language::convert(null, $i18n->getLanguageISO())) {
+                if ($this->wpml->canBeUsed()) {
+                    if ($this->wpml->getDefaultLanguage() === Language::convert(null, $i18n->getLanguageISO())) {
                         $defaultLanguage = $i18n;
                         break;
                     }
@@ -140,8 +136,8 @@ class Manufacturer extends BaseController
             if ($defaultLanguage !== null) {
                 $perfectWooCommerceBrands->saveManufacturer($jtlManufacturer, $defaultLanguage);
 
-                if ($this->getWpml()->canBeUsed()) {
-                    $this->getWpml()
+                if ($this->wpml->canBeUsed()) {
+                    $this->wpml
                         ->getComponent(WpmlPerfectWooCommerceBrands::class)
                         ->saveTranslations($jtlManufacturer);
                 }
@@ -166,8 +162,8 @@ class Manufacturer extends BaseController
 
                 unset(self::$idCache[$manufacturer->getId()->getHost()]);
 
-                if ($this->getWpml()->canBeUsed()) {
-                    $this->getWpml()
+                if ($this->wpml->canBeUsed()) {
+                    $this->wpml
                         ->getComponent(WpmlPerfectWooCommerceBrands::class)
                         ->deleteTranslations($manufacturerId);
                 }
@@ -187,8 +183,8 @@ class Manufacturer extends BaseController
     {
         $perfectWooCommerceBrands = $this->getPluginsManager()->get(PerfectWooCommerceBrands::class);
         if ($perfectWooCommerceBrands->canBeUsed()) {
-            if ($this->getWpml()->canBeUsed()) {
-                $total = $this->getWpml()->getComponent(WpmlPerfectWooCommerceBrands::class)->getStats();
+            if ($this->wpml->canBeUsed()) {
+                $total = $this->wpml->getComponent(WpmlPerfectWooCommerceBrands::class)->getStats();
             } else {
                 $total = $perfectWooCommerceBrands->getStats();
             }
