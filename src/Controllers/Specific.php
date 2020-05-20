@@ -6,6 +6,7 @@
 
 namespace JtlWooCommerceConnector\Controllers;
 
+use jtl\Connector\Core\Utilities\Language;
 use jtl\Connector\Model\Identity;
 use jtl\Connector\Model\Specific as SpecificModel;
 use jtl\Connector\Model\SpecificI18n as SpecificI18nModel;
@@ -15,6 +16,9 @@ use JtlWooCommerceConnector\Controllers\Traits\DeleteTrait;
 use JtlWooCommerceConnector\Controllers\Traits\PullTrait;
 use JtlWooCommerceConnector\Controllers\Traits\PushTrait;
 use JtlWooCommerceConnector\Controllers\Traits\StatsTrait;
+use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerce;
+use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerceSpecific;
+use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerceSpecificValue;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlSpecific;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlSpecificValue;
 use JtlWooCommerceConnector\Logger\WpErrorLogger;
@@ -47,7 +51,6 @@ class Specific extends BaseController
                     ->setLanguageISO(Util::getInstance()->getWooCommerceLanguage())
                     ->setName($specificDataSet['attribute_label'])
             );
-
 
             if ($this->wpml->canBeUsed()) {
                 $this->wpml
@@ -95,74 +98,33 @@ class Specific extends BaseController
         //WooFix
         $specific->setType('string');
         $meta = null;
-        $defaultAvailable = false;
 
         foreach ($specific->getI18ns() as $i18n) {
-            $languageSet = Util::getInstance()->isWooCommerceLanguage($i18n->getLanguageISO());
-
-            if (strcmp($i18n->getLanguageISO(), 'ger') === 0) {
-                $defaultAvailable = true;
-            }
-
-            if ($languageSet) {
-                $meta = $i18n;
-                break;
-            }
-        }
-
-        //Fallback 'ger' if incorrect language code was given
-        if ($meta === null && $defaultAvailable) {
-            foreach ($specific->getI18ns() as $i18n) {
-                if (strcmp($i18n->getLanguageISO(), 'ger') === 0) {
+            if ($this->wpml->canBeUsed()) {
+                if (Language::convert(null, $i18n->getLanguageISO()) === $this->wpml->getDefaultLanguage()) {
                     $meta = $i18n;
+                    break;
+                }
+            } else {
+                if (Util::getInstance()->isWooCommerceLanguage($i18n->getLanguageISO())) {
+                    $meta = $i18n;
+                    break;
                 }
             }
         }
 
         if ($meta !== null) {
 
-            $attrName = wc_sanitize_taxonomy_name(Util::removeSpecialchars($meta->getName()));
+            $result = $this->getPluginsManager()
+                ->get(WooCommerce::class)
+                ->getComponent(WooCommerceSpecific::class)
+                ->saveTranslation($specific, $meta);
 
-            //STOP here if already exists
-            $exId = Util::getAttributeTaxonomyIdByName($attrName);
-            $endId = (int)$specific->getId()->getEndpoint();
-
-            if ($exId !== 0) {
-                if ($exId !== $endId) {
-                    $attrId = $exId;
-                } else {
-                    $attrId = $endId;
-                }
-            } else {
-                $attrId = $endId;
-            }
-
-            $endpoint = [
-                'id' => $attrId,
-                'name' => $meta->getName(),
-                'slug' => wc_sanitize_taxonomy_name(substr(trim($meta->getName()), 0, 27)),
-                'type' => 'select',
-                'order_by' => 'menu_order',
-                //'attribute_public'  => 0,
-            ];
-
-            if ($endpoint['id'] === 0) {
-                $attributeId = wc_create_attribute($endpoint);
-            } else {
-                $attributeId = wc_update_attribute($endpoint['id'], $endpoint);
-            }
-
-            if ($attributeId instanceof WP_Error) {
-                //var_dump($attributeId);
-                //die();
-                //return $termId->get_error_message();
-                WpErrorLogger::getInstance()->logError($attributeId);
-
+            if ($result === null) {
                 return $specific;
-
             }
 
-            $specific->getId()->setEndpoint($attributeId);
+            $attrName = wc_sanitize_taxonomy_name(Util::removeSpecialchars($meta->getName()));
 
             //Get taxonomy
             $taxonomy = $attrName ?
@@ -174,95 +136,29 @@ class Specific extends BaseController
 
             /** @var SpecificValueModel $value */
             foreach ($specific->getValues() as $key => $value) {
-                $value->getSpecificId()->setEndpoint($attributeId);
+                $value->getSpecificId()->setEndpoint($specific->getId()->getEndpoint());
                 $metaValue = null;
-                $defaultValueAvailable = false;
 
-                //Get i18n
                 foreach ($value->getI18ns() as $i18n) {
-                    $languageValueSet = Util::getInstance()->isWooCommerceLanguage($i18n->getLanguageISO());
-
-                    if (strcmp($i18n->getLanguageISO(), 'ger') === 0) {
-                        $defaultValueAvailable = true;
-                    }
-
-                    if ($languageValueSet) {
-                        $metaValue = $i18n;
-                        break;
-                    }
-                }
-
-                //Fallback 'ger' if incorrect language code was given
-                if ($meta === null && $defaultValueAvailable) {
-                    foreach ($value->getI18ns() as $i18n) {
-                        if (strcmp($i18n->getLanguageISO(), 'ger') === 0) {
+                    if ($this->wpml->canBeUsed()) {
+                        if (Language::convert(null, $i18n->getLanguageISO()) === $this->wpml->getDefaultLanguage()) {
                             $metaValue = $i18n;
+                            break;
+                        }
+                    } else {
+                        if (Util::getInstance()->getWooCommerceLanguage() === $i18n->getLanguageISO()) {
+                            $metaValue = $i18n;
+                            break;
                         }
                     }
                 }
 
-                if (is_null($metaValue)) {
-                    continue;
+                if (is_null($metaValue) === false) {
+                    $this->getPluginsManager()
+                        ->get(WooCommerce::class)
+                        ->getComponent(WooCommerceSpecificValue::class)
+                        ->saveTranslation($taxonomy, $value, $metaValue);
                 }
-
-                $slug = wc_sanitize_taxonomy_name($metaValue->getValue());
-
-                $endpointValue = [
-                    'name' => $metaValue->getValue(),
-                    'slug' => $slug,
-                ];
-
-                $exValId = $this->database->query(
-                    SqlHelper::getSpecificValueId(
-                        $taxonomy,
-                        $endpointValue['name']
-                    )
-                );
-
-                if (count($exValId) >= 1) {
-                    if (isset($exValId[0]['term_id'])) {
-                        $exValId = $exValId[0]['term_id'];
-                    } else {
-                        $exValId = null;
-                    }
-                } else {
-                    $exValId = null;
-                }
-
-                $endValId = (int)$value->getId()->getEndpoint();
-
-                if (is_null($exValId) && $endValId === 0) {
-                    $newTerm = \wp_insert_term(
-                        $endpointValue['name'],
-                        $taxonomy
-                    );
-
-                    if ($newTerm instanceof WP_Error) {
-                        //  var_dump($newTerm);
-                        // die();
-                        WpErrorLogger::getInstance()->logError($newTerm);
-                        continue;
-                    }
-
-                    $termId = $newTerm['term_id'];
-                } elseif (is_null($exValId) && $endValId !== 0) {
-                    $termId = \wp_update_term($endValId, $taxonomy, $endpointValue);
-                } else {
-                    $termId = $exValId;
-                }
-
-                if ($termId instanceof WP_Error) {
-                    // var_dump($termId);
-                    // die();
-                    WpErrorLogger::getInstance()->logError($termId);
-                    continue;
-                }
-
-                if (is_array($termId)) {
-                    $termId = $termId['term_id'];
-                }
-
-                $value->getId()->setEndpoint($termId);
             }
         }
 

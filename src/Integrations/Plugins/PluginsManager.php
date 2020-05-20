@@ -5,6 +5,8 @@ namespace JtlWooCommerceConnector\Integrations\Plugins;
 use JtlWooCommerceConnector\Integrations\Plugins\PerfectWooCommerceBrands\PerfectWooCommerceBrands;
 use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerce;
 use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerceCategory;
+use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerceSpecific;
+use JtlWooCommerceConnector\Integrations\Plugins\WooCommerce\WooCommerceSpecificValue;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\Wpml;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlCategory;
 use JtlWooCommerceConnector\Integrations\Plugins\Wpml\WpmlCurrency;
@@ -55,7 +57,9 @@ class PluginsManager
             ->addPlugin(new PerfectWooCommerceBrands())
             ->addPlugin(
                 (new WooCommerce())->addComponents(
-                    new WooCommerceCategory()
+                    new WooCommerceCategory(),
+                    new WooCommerceSpecific(),
+                    new WooCommerceSpecificValue()
                 )
             );
     }

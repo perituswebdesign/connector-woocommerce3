@@ -46,8 +46,7 @@ class Manufacturer extends BaseController
         if ($perfectWooCommerceBrands->canBeUsed()) {
 
             if ($this->wpml->canBeUsed()) {
-                $manufacturerData = $this
-                    ->getWpml()
+                $manufacturerData = $this->wpml
                     ->getComponent(WpmlPerfectWooCommerceBrands::class)
                     ->getManufacturers((int)$limit);
 
