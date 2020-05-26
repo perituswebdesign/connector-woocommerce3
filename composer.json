@@ -1,5 +1,5 @@
 {
-  "name": "peritus/woocommerce",
+  "name": "peritus/woo-jtl-connector",
   "type": "app",
   "description": "WooCommerce Connector based on jtl/connector",
   "keywords": [
