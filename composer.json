@@ -1,6 +1,6 @@
 {
   "name": "peritus/woo-jtl-connector",
-  "type": "app",
+  "type": "wordpress-plugin",
   "description": "WooCommerce Connector based on jtl/connector",
   "keywords": [
     "jtl",
